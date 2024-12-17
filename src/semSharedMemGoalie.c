@@ -143,7 +143,20 @@ static void arrive(int id)
     }
 
     /* TODO: insert your code here */
+    sh->fSt.nGoalies += 1;
+
+    if(sh->fSt.nGoalies < 2){
+        semDown(semgid, sh->goaliesWaitTeam);
+    }
+
+    else if(sh->fSt.nGoalies == 2){
+        //change Status to Forming
+    }
+    else{
+        //change to late
+        //}
     
+        
     if (semUp (semgid, sh->mutex) == -1) {                                                         /* exit critical region */
         perror ("error on the down operation for semaphore access (GL)");
         exit (EXIT_FAILURE);
