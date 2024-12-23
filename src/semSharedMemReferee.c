@@ -178,16 +178,10 @@ static void waitForTeams ()
     }
 
     // Wait until 8 players and 2 goalies
-    while (sh->fSt.playersArrived < 8 || sh->fSt.goaliesArrived < 2) {
 
+    for (int i = 0; i < 2; ++i){
         if (semDown(semgid, sh->refereeWaitTeams) == -1) {
-            perror("error on the down operation for referee wait teams");
-            exit(EXIT_FAILURE);
-        }
-
-        // After waiting, recheck the condition
-        if (semUp(semgid, sh->refereeWaitTeams) == -1) {
-            perror("error on the up operation for referee wait teams");
+            perror("error on the down operation for semaphore access (RF)");
             exit(EXIT_FAILURE);
         }
     }
