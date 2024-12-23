@@ -73,7 +73,7 @@ int main (int argc, char *argv[])
     int key;                                          /*access key to shared memory and semaphore set */
 
     /* validation of command line parameters */
-    if (argc != 4) { 
+    if (argc != 4) {
         freopen ("error_RF", "a", stderr);
         fprintf (stderr, "Number of parameters is incorrect!\n");
         return EXIT_FAILURE;
@@ -96,21 +96,21 @@ int main (int argc, char *argv[])
 
     /* connection to the semaphore set and the shared memory region and mapping the shared region onto the
        process address space */
-    if ((semgid = semConnect (key)) == -1) { 
+    if ((semgid = semConnect (key)) == -1) {
         perror ("error on connecting to the semaphore set");
         return EXIT_FAILURE;
     }
-    if ((shmid = shmemConnect (key)) == -1) { 
+    if ((shmid = shmemConnect (key)) == -1) {
         perror ("error on connecting to the shared memory region");
         return EXIT_FAILURE;
     }
-    if (shmemAttach (shmid, (void **) &sh) == -1) { 
+    if (shmemAttach (shmid, (void **) &sh) == -1) {
         perror ("error on mapping the shared region on the process address space");
         return EXIT_FAILURE;
     }
 
     /* initialize random generator */
-    srandom ((unsigned int) getpid ());                                      
+    srandom ((unsigned int) getpid ());
 
     /* simulation of the life cycle of the referee */
     arrive();
@@ -120,7 +120,7 @@ int main (int argc, char *argv[])
     endGame();
 
     /* unmapping the shared region off the process address space */
-    if (shmemDettach (sh) == -1) { 
+    if (shmemDettach (sh) == -1) {
         perror ("error on unmapping the shared region off the process address space");
         return EXIT_FAILURE;;
     }
@@ -143,14 +143,16 @@ static void arrive ()
     }
 
     /* TODO: insert your code here */
+    sh->fSt.st.refereeStat = ARRIVINGR;
+    saveState(nFic, &sh->fSt);
 
     if (semUp (semgid, sh->mutex) == -1) {                                                        /* leave critical region */
         perror ("error on the up operation for semaphore access (RF)");
         exit (EXIT_FAILURE);
     }
-    
+
     usleep((100.0*random())/(RAND_MAX+1.0)+10.0);
-   
+
 }
 
 /**
@@ -167,7 +169,6 @@ static void waitForTeams ()
         exit (EXIT_FAILURE);
     }
 
-    /* TODO: insert your code here */
     sh->fSt.st.refereeStat = WAITING_TEAMS;
     saveState(nFic, &sh->fSt);
 
@@ -176,8 +177,20 @@ static void waitForTeams ()
         exit (EXIT_FAILURE);
     }
 
-    /* TODO: insert your code here */
+    // Wait until 8 players and 2 goalies
+    while (sh->fSt.playersArrived < 8 || sh->fSt.goaliesArrived < 2) {
 
+        if (semDown(semgid, sh->refereeWaitTeams) == -1) {
+            perror("error on the down operation for referee wait teams");
+            exit(EXIT_FAILURE);
+        }
+
+        // After waiting, recheck the condition
+        if (semUp(semgid, sh->refereeWaitTeams) == -1) {
+            perror("error on the up operation for referee wait teams");
+            exit(EXIT_FAILURE);
+        }
+    }
 }
 
 /**
@@ -195,20 +208,29 @@ static void startGame ()
     }
 
     /* TODO: insert your code here */
+    sh->fSt.st.refereeStat = STARTING_GAME;
+    saveState(nFic, &sh->fSt);
 
     if (semUp (semgid, sh->mutex) == -1) {                                                        /* leave critical region */
         perror ("error on the up operation for semaphore access (RF)");
         exit (EXIT_FAILURE);
     }
 
-    /* TODO: insert your code here */
+    // Notify players and goalies to start the game
+    // Trigger semaphores or flags to signal players and goalies to begin
+    for (int p = 0; p < NUMPLAYERS+NUMGOALIES; p++) {
+        if (semUp (semgid, sh->playersWaitReferee) == -1) {
+            perror ("error on the up operation for semaphore access (RF)");
+            exit (EXIT_FAILURE);
+        }
+    }
 
 }
 
 /**
  *  \brief referee takes some time to allow game to finish
  *
- *  Referee updates state and takes some time to finish the game 
+ *  Referee updates state and takes some time to finish the game
  *  The internal state should be saved.
  *
  */
@@ -219,14 +241,15 @@ static void play ()
         exit (EXIT_FAILURE);
     }
 
-    /* TODO: insert your code here */
+    sh->fSt.st.refereeStat = REFEREEING;
+    saveState(nFic, &sh->fSt);
 
     if (semUp (semgid, sh->mutex) == -1) {                                                        /* leave critical region */
         perror ("error on the up operation for semaphore access (RF)");
         exit (EXIT_FAILURE);
     }
 
-    usleep((100.0*random())/(RAND_MAX+1.0)+900.0);
+    usleep((100.0*random())/(RAND_MAX+1.0)+10.0);
 }
 
 /**
@@ -243,13 +266,18 @@ static void endGame ()
         exit (EXIT_FAILURE);
     }
 
-    /* TODO: insert your code here */
+    sh->fSt.st.refereeStat = ENDING_GAME;
+    saveState(nFic, &sh->fSt);
 
+    for (int p = 0; p < NUMGOALIES+NUMPLAYERS; p++) {
+        if (semUp (semgid, sh->playersWaitEnd) == -1) {
+            perror ("error on the up operation for semaphore access (RF)");
+            exit (EXIT_FAILURE);
+        }
+    }
     if (semUp (semgid, sh->mutex) == -1) {                                                        /* leave critical region */
         perror ("error on the up operation for semaphore access (RF)");
         exit (EXIT_FAILURE);
     }
-
-    /* TODO: insert your code here */
-
+    exit(0);
 }

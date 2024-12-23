@@ -67,16 +67,16 @@ int main (int argc, char *argv[])
     int n, team;
 
     /* validation of command line parameters */
-    if (argc != 4) { 
+    if (argc != 4) {
         freopen ("error_PL", "a", stderr);
         fprintf (stderr, "Number of parameters is incorrect!\n");
         return EXIT_FAILURE;
     }
-    
+
 
     /* get goalie id - argv[1]*/
     n = (unsigned int) strtol (argv[1], &tinp, 0);
-    if ((*tinp != '\0') || (n >= NUMPLAYERS )) { 
+    if ((*tinp != '\0') || (n >= NUMPLAYERS )) {
         fprintf (stderr, "Player process identification is wrong!\n");
         return EXIT_FAILURE;
     }
@@ -97,21 +97,21 @@ int main (int argc, char *argv[])
 
     /* connection to the semaphore set and the shared memory region and mapping the shared region onto the
        process address space */
-    if ((semgid = semConnect (key)) == -1) { 
+    if ((semgid = semConnect (key)) == -1) {
         perror ("error on connecting to the semaphore set");
         return EXIT_FAILURE;
     }
-    if ((shmid = shmemConnect (key)) == -1) { 
+    if ((shmid = shmemConnect (key)) == -1) {
         perror ("error on connecting to the shared memory region");
         return EXIT_FAILURE;
     }
-    if (shmemAttach (shmid, (void **) &sh) == -1) { 
+    if (shmemAttach (shmid, (void **) &sh) == -1) {
         perror ("error on mapping the shared region on the process address space");
         return EXIT_FAILURE;
     }
 
     /* initialize random generator */
-    srandom ((unsigned int) getpid ());                                                 
+    srandom ((unsigned int) getpid ());
 
 
     /* simulation of the life cycle of the player */
@@ -138,14 +138,16 @@ int main (int argc, char *argv[])
  *
  */
 static void arrive(int id)
-{    
+{
     if (semDown (semgid, sh->mutex) == -1)  {                                                     /* enter critical region */
         perror ("error on the up operation for semaphore access (PL)");
         exit (EXIT_FAILURE);
     }
 
-    /* TODO: insert your code here */
-    
+    sh->fSt.st.playerStat[id] = ARRIVING;
+    saveState(nFic, &sh->fSt);
+
+
     if (semUp (semgid, sh->mutex) == -1) {                                                         /* exit critical region */
         perror ("error on the down operation for semaphore access (PL)");
         exit (EXIT_FAILURE);
@@ -158,14 +160,14 @@ static void arrive(int id)
  *  \brief player constitutes team
  *
  *  If player is late, it updates state and leaves.
- *  If there are enough free players and free goalies to form a team, player forms team allowing 
+ *  If there are enough free players and free goalies to form a team, player forms team allowing
  *  team members to proceed and waiting for them to acknowledge registration.
  *  Otherwise it updates state, waits for the forming teammate to "call" him, saves its team
  *  and acknowledges registration.
  *  The internal state should be saved.
  *
  *  \param id player id
- * 
+ *
  *  \return id of player team (0 for late goalies; 1 for team 1; 2 for team 2)
  *
  */
@@ -177,10 +179,45 @@ static int playerConstituteTeam (int id)
         perror ("error on the up operation for semaphore access (PL)");
         exit (EXIT_FAILURE);
     }
+    // player is late, then updates state and leaves
+    if ( sh->fSt.playersFree == 0){
+        sh->fSt.st.playerStat[id] = LATE;
+        saveState(nFic, &sh->fSt);
+        if (semUp(semgid, sh->mutex) == -1) { // Release the mutex
+            perror("error on the up operation for semaphore access (PL)");
+            exit(EXIT_FAILURE);
+        }
+        exit(0);
+    }
+
+    // decrement free spots as player
+    sh->fSt.st.playerStat[id] = FORMING_TEAM;
+    sh->fSt.playersFree--;
+    saveState(nFic, &sh->fSt);
+
+    // get team and chenge shred memory team
+    ret = sh->fSt.teamId;
+    sh->fSt.teamId = (ret == 1)?2:1;
+    
+    if (sh->fSt.playersFree == 0 && sh->fSt.goaliesFree == 0) {
+        // We can form a team, so the player joins the team and proceeds
+        if (ret == 1) {
+            sh->fSt.st.playerStat[id] = WAITING_START_1;
+        } else {
+            sh->fSt.st.playerStat[id] = WAITING_START_2;
+        }        
+        saveState(nFic, &sh->fSt);
+        
+        // Signal the players to acknowledge registration
+        if (semUp(semgid, sh->playerRegistered) == -1) {
+            perror("error on the up operation for semaphore access (PL)");
+            exit(EXIT_FAILURE);
+        }
+    
 
 
     /* TODO: insert your code here */
-    
+
     if (semUp (semgid, sh->mutex) == -1) {                                                         /* exit critical region */
         perror ("error on the down operation for semaphore access (PL)");
         exit (EXIT_FAILURE);
@@ -194,7 +231,7 @@ static int playerConstituteTeam (int id)
 /**
  *  \brief player waits for referee to start match
  *
- *  The player updates its state and waits for referee to end match.  
+ *  The player updates its state and waits for referee to end match.
  *  The internal state should be saved.
  *
  *  \param id   player id
@@ -221,7 +258,7 @@ static void waitReferee (int id, int team)
 /**
  *  \brief player waits for referee to end match
  *
- *  The player updates its state and waits for referee to end match.  
+ *  The player updates its state and waits for referee to end match.
  *  The internal state should be saved.
  *
  *  \param id   player id
@@ -244,6 +281,3 @@ static void playUntilEnd (int id, int team)
     /* TODO: insert your code here */
 
 }
-
-
-
