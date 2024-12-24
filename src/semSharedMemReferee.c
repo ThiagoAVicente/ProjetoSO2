@@ -169,6 +169,7 @@ static void waitForTeams ()
         exit (EXIT_FAILURE);
     }
 
+    // update state
     sh->fSt.st.refereeStat = WAITING_TEAMS;
     saveState(nFic, &sh->fSt);
 
@@ -177,8 +178,7 @@ static void waitForTeams ()
         exit (EXIT_FAILURE);
     }
 
-    // Wait until 8 players and 2 goalies
-
+    // Wait till both teams are ready
     for (int i = 0; i < 2; ++i){
         if (semDown(semgid, sh->refereeWaitTeams) == -1) {
             perror("error on the down operation for semaphore access (RF)");
@@ -202,6 +202,7 @@ static void startGame ()
     }
 
     /* TODO: insert your code here */
+    // update state
     sh->fSt.st.refereeStat = STARTING_GAME;
     saveState(nFic, &sh->fSt);
 
@@ -210,8 +211,7 @@ static void startGame ()
         exit (EXIT_FAILURE);
     }
 
-    // Notify players and goalies to start the game
-    // Trigger semaphores or flags to signal players and goalies to begin
+    // notify players that referee is starting game
     for (int p = 0; p < NUMPLAYERS+NUMGOALIES; p++) {
         if (semUp (semgid, sh->playersWaitReferee) == -1) {
             perror ("error on the up operation for semaphore access (RF)");
@@ -235,6 +235,7 @@ static void play ()
         exit (EXIT_FAILURE);
     }
 
+    // update state
     sh->fSt.st.refereeStat = REFEREEING;
     saveState(nFic, &sh->fSt);
 
@@ -260,9 +261,11 @@ static void endGame ()
         exit (EXIT_FAILURE);
     }
 
+    // update state
     sh->fSt.st.refereeStat = ENDING_GAME;
     saveState(nFic, &sh->fSt);
 
+    // notify players that referee is ending game
     for (int p = 0; p < NUMGOALIES+NUMPLAYERS; p++) {
         if (semUp (semgid, sh->playersWaitEnd) == -1) {
             perror ("error on the up operation for semaphore access (RF)");
@@ -273,5 +276,5 @@ static void endGame ()
         perror ("error on the up operation for semaphore access (RF)");
         exit (EXIT_FAILURE);
     }
-    exit(0);
+
 }
