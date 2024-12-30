@@ -239,6 +239,13 @@ static void play ()
     sh->fSt.st.refereeStat = REFEREEING;
     saveState(nFic, &sh->fSt);
 
+    for ( int i = 0; i < 2*(NUMTEAMPLAYERS+NUMTEAMGOALIES);++i){
+        if (semDown(semgid, sh->playing) == -1) {
+            perror ("error on the up operation for semaphore access (PL)");
+            exit (EXIT_FAILURE);
+        }
+    }
+
     if (semUp (semgid, sh->mutex) == -1) {                                                        /* leave critical region */
         perror ("error on the up operation for semaphore access (RF)");
         exit (EXIT_FAILURE);

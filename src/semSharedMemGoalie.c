@@ -247,8 +247,7 @@ static int goalieConstituteTeam (int id)
 
         // get team
         ret = sh->fSt.teamId;
-        sh->fSt.st.goalieStat[id] = ret == 1? WAITING_START_1:WAITING_START_2;
-        saveState(nFic, &sh->fSt);
+
 
         // confirm presence
         if (semUp(semgid, sh->playerRegistered) == -1) {
@@ -277,11 +276,10 @@ static void waitReferee (int id, int team)
 
     /* TODO: insert your code here */
 
-    // update state for team captain
-    if (sh->fSt.st.goalieStat[id] == FORMING_TEAM){
-        sh->fSt.st.goalieStat[id] = team == 1? WAITING_START_1:WAITING_START_2;
-        saveState(nFic, &sh->fSt);
-    }
+    // update state
+    sh->fSt.st.goalieStat[id] = team == 1? WAITING_START_1:WAITING_START_2;
+    saveState(nFic, &sh->fSt);
+
 
 
     if (semUp (semgid, sh->mutex) == -1) {                                                         /* exit critical region */
