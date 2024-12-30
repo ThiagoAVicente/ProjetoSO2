@@ -237,16 +237,18 @@ static int goalieConstituteTeam (int id)
         exit (EXIT_FAILURE);
     }
 
-    // if is waiting 
+    // if is waiting
     if (sh->fSt.st.goalieStat[id] == WAITING_TEAM){
         // wait till team is formed
         if (semDown (semgid, sh->goaliesWaitTeam) == -1) {
             perror ("error on the down operation for semaphore access (GL)");
             exit (EXIT_FAILURE);
         }
-        
+
         // get team
         ret = sh->fSt.teamId;
+        sh->fSt.st.goalieStat[id] = ret == 1? WAITING_START_1:WAITING_START_2;
+        saveState(nFic, &sh->fSt);
 
         // confirm presence
         if (semUp(semgid, sh->playerRegistered) == -1) {
@@ -275,9 +277,12 @@ static void waitReferee (int id, int team)
 
     /* TODO: insert your code here */
 
-    // update state
-    sh->fSt.st.goalieStat[id] = team == 1? WAITING_START_1:WAITING_START_2;
-    saveState(nFic, &sh->fSt);
+    // update state for team captain
+    if (sh->fSt.st.goalieStat[id] == FORMING_TEAM){
+        sh->fSt.st.goalieStat[id] = team == 1? WAITING_START_1:WAITING_START_2;
+        saveState(nFic, &sh->fSt);
+    }
+
 
     if (semUp (semgid, sh->mutex) == -1) {                                                         /* exit critical region */
         perror ("error on the down operation for semaphore access (GL)");

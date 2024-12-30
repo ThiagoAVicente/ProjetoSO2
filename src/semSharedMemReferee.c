@@ -212,7 +212,7 @@ static void startGame ()
     }
 
     // notify players that referee is starting game
-    for (int p = 0; p < NUMPLAYERS+NUMGOALIES; p++) {
+    for (int p = 0; p < NUMTEAMPLAYERS*2+NUMTEAMGOALIES*2; p++) {
         if (semUp (semgid, sh->playersWaitReferee) == -1) {
             perror ("error on the up operation for semaphore access (RF)");
             exit (EXIT_FAILURE);
@@ -266,7 +266,7 @@ static void endGame ()
     saveState(nFic, &sh->fSt);
 
     // notify players that referee is ending game
-    for (int p = 0; p < NUMGOALIES+NUMPLAYERS; p++) {
+    for (int p = 0; p < NUMTEAMPLAYERS*2+NUMTEAMPLAYERS*2; p++) {
         if (semUp (semgid, sh->playersWaitEnd) == -1) {
             perror ("error on the up operation for semaphore access (RF)");
             exit (EXIT_FAILURE);
